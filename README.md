@@ -55,7 +55,7 @@
 
 1. Создай репозиторий и загрузи файлы в корень.
 2. **Settings → Pages → Build and deployment**: `Deploy from a branch`, ветка `main`, папка `/ (root)`.
-3. Через минуту сайт будет доступен по адресу `https://1yandurask.github.io/chatbox757/`.
+3. Через минуту сайт будет доступен по адресу `https://<НИК>.github.io/<РЕПОЗИТОРИЙ>/`.
 
 ## ⚙️ Параметры ссылки
 
