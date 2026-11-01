@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat Box для OBS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0c0e;
+    --panel: rgba(30,27,26,.72);
+    --line: rgba(255,255,255,.08);
+    --text: #f4f2ef;
+    --muted: #a39d97;
+    --accent: #d9a46b;
+    --accent-ink: #1a140e;
+    --field: rgba(255,255,255,.05);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Manrope", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 20px;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  @media (max-width: 860px) {
+    .wrap { grid-template-columns: 1fr; padding: 16px; }
+    .preview { position: relative !important; height: 560px !important; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 22px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    align-self: start;
+  }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  h1 { font-size: 20px; font-weight: 800; margin: 0; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; font-weight: 500; }
+
+  .lang { display: flex; background: var(--field); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+  .lang button {
+    border: 0; background: transparent; color: var(--muted);
+    font: 700 12px "JetBrains Mono", monospace; padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  }
+  .lang button.on { background: var(--text); color: var(--bg); }
+
+  label.f { display: flex; flex-direction: column; gap: 8px; }
+  .lbl { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+  .val { font-family: "JetBrains Mono", monospace; color: var(--text); font-size: 12px; }
+
+  input[type=text], select, textarea {
+    width: 100%;
+    background: var(--field);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 11px 12px;
+    font: 600 15px "Manrope", sans-serif;
+    outline: none;
+    transition: border-color .2s;
+  }
+  input[type=text]:focus, select:focus, textarea:focus { border-color: rgba(217,164,107,.6); }
+  select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+  select option { background: #1d1a19; }
+  textarea { resize: vertical; min-height: 64px; font: 500 12px/1.5 "JetBrains Mono", monospace; }
+
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=range]:disabled { opacity: .35; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .seg { display: flex; background: var(--field); border: 1px solid var(--line); border-radius: 12px; padding: 3px; }
+  .seg button {
+    flex: 1; border: 0; background: transparent; color: var(--muted); padding: 8px;
+    border-radius: 9px; font: 700 13px "Manrope", sans-serif; cursor: pointer;
+  }
+  .seg button.on { background: rgba(255,255,255,.1); color: var(--text); }
+
+  .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; cursor: pointer; }
+  .toggle input { appearance: none; width: 40px; height: 24px; border-radius: 999px; background: rgba(255,255,255,.12); position: relative; cursor: pointer; transition: background .2s; flex: none; margin: 0; }
+  .toggle input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+  .toggle input:checked { background: var(--accent); }
+  .toggle input:checked::after { transform: translateX(16px); }
+
+  hr { border: 0; border-top: 1px solid var(--line); margin: 0; }
+
+  .out { display: flex; flex-direction: column; gap: 10px; }
+  .url {
+    font: 500 12px/1.5 "JetBrains Mono", monospace; color: var(--muted);
+    background: var(--field); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
+    word-break: break-all; max-height: 92px; overflow: auto;
+  }
+  .btn {
+    border: 0; border-radius: 12px; padding: 13px; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); font: 800 15px "Manrope", sans-serif;
+    transition: transform .15s, filter .2s;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .note { font-size: 12.5px; color: var(--muted); line-height: 1.55; font-weight: 500; }
+  .note b { color: var(--text); font-weight: 700; }
+
+  /* Превью: «игровой» фон, чтобы было видно стекло */
+  .preview {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    position: sticky;
+    top: 20px;
+    align-self: start;
+    height: calc(100vh - 40px);
+    min-height: 480px;
+    background:
+      radial-gradient(60% 50% at 20% 25%, rgba(255,140,60,.55), transparent 70%),
+      radial-gradient(50% 60% at 80% 70%, rgba(60,120,255,.45), transparent 70%),
+      radial-gradient(40% 40% at 55% 40%, rgba(180,60,200,.35), transparent 70%),
+      linear-gradient(160deg, #2a2320, #121418);
+  }
+  .preview .tag {
+    position: absolute; top: 14px; left: 16px;
+    font: 500 11px "JetBrains Mono", monospace; letter-spacing: .08em; text-transform: uppercase;
+    color: rgba(255,255,255,.7); background: rgba(0,0,0,.35); padding: 5px 9px; border-radius: 999px;
+  }
+  .preview iframe {
+    position: absolute; top: 0; bottom: 0; right: 0;
+    height: 100%; border: 0; background: transparent;
+  }
+  .preview.left iframe { right: auto; left: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="panel">
+    <header>
+      <div>
+        <h1 data-t="title"></h1>
+        <div class="sub" data-t="subtitle"></div>
+      </div>
+      <div class="lang">
+        <button data-lang="ru">RU</button>
+        <button data-lang="en">EN</button>
+      </div>
+    </header>
+
+    <label class="f">
+      <span class="lbl"><span data-t="channel"></span></span>
+      <input type="text" id="channel" placeholder="channel_name" autocomplete="off" spellcheck="false">
+    </label>
+
+    <label class="f">
+      <span class="lbl"><span data-t="anim"></span></span>
+      <select id="anim">
+        <option value="rise" data-t="anim_rise"></option>
+        <option value="fade" data-t="anim_fade"></option>
+        <option value="slide" data-t="anim_slide"></option>
+        <option value="pop" data-t="anim_pop"></option>
+        <option value="none" data-t="anim_none"></option>
+      </select>
+    </label>
+
+    <div class="f" style="display:flex;flex-direction:column;gap:10px">
+      <label class="toggle"><span data-t="expire"></span><input type="checkbox" id="expire"></label>
+      <label class="f">
+        <span class="lbl"><span data-t="life"></span><span class="val" id="lifeV"></span></span>
+        <input type="range" id="life" min="5" max="300" step="5">
+      </label>
+    </div>
+
+    <label class="f">
+      <span class="lbl"><span data-t="max"></span><span class="val" id="maxV"></span></span>
+      <input type="range" id="max" min="1" max="30" step="1">
+    </label>
+
+    <div class="row2">
+      <label class="f">
+        <span class="lbl"><span data-t="size"></span><span class="val" id="sizeV"></span></span>
+        <input type="range" id="size" min="12" max="36" step="1">
+      </label>
+      <label class="f">
+        <span class="lbl"><span data-t="width"></span><span class="val" id="widthV"></span></span>
+        <input type="range" id="width" min="240" max="800" step="10">
+      </label>
+    </div>
+
+    <label class="f">
+      <span class="lbl"><span data-t="transp"></span><span class="val" id="transpV"></span></span>
+      <input type="range" id="transp" min="0" max="100" step="1">
+    </label>
+
+    <div class="f" style="display:flex;flex-direction:column;gap:8px">
+      <span class="lbl"><span data-t="align"></span></span>
+      <div class="seg" id="align">
+        <button data-v="left" data-t="left"></button>
+        <button data-v="right" data-t="right"></button>
+      </div>
+    </div>
+
+    <label class="toggle"><span data-t="badges"></span><input type="checkbox" id="badges"></label>
+
+    <label class="f">
+      <span class="lbl"><span data-t="bots"></span></span>
+      <textarea id="bots" spellcheck="false"></textarea>
+    </label>
+
+    <hr>
+
+    <div class="out">
+      <div class="url" id="url"></div>
+      <button class="btn" id="copy" data-t="copy"></button>
+      <div class="note" id="obsNote"></div>
+    </div>
+  </section>
+
+  <section class="preview" id="preview">
+    <span class="tag" data-t="preview"></span>
+    <iframe id="frame" title="preview" allowtransparency="true"></iframe>
+  </section>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const DEFAULT_BOTS = "nightbot, streamelements, streamlabs, moobot, fossabot, wizebot, sery_bot, soundalerts, kofistreambot, botrixoficial, streamholics, pokemoncommunitygame, own3d";
+  const DEFAULTS = {
+    channel: "", anim: "rise", expire: false, life: 30, max: 10,
+    size: 18, width: 400, transp: 45, align: "right", badges: true, bots: DEFAULT_BOTS
+  };
+
+  const I18N = {
+    ru: {
+      title: "Chat Box для OBS",
+      subtitle: "Настрой и скопируй ссылку в OBS",
+      channel: "Канал Twitch",
+      anim: "Анимация появления",
+      anim_rise: "Всплытие снизу + fade",
+      anim_fade: "Только fade",
+      anim_slide: "Выезд сбоку",
+      anim_pop: "Пружинка",
+      anim_none: "Без анимации",
+      expire: "Сообщения исчезают",
+      life: "Время жизни",
+      never: "∞",
+      sec: "с",
+      max: "Сообщений на экране",
+      size: "Шрифт",
+      width: "Ширина",
+      transp: "Прозрачность фона",
+      align: "Прижать к краю",
+      left: "Слева",
+      right: "Справа",
+      badges: "Значки модераторов и VIP",
+      bots: "Скрывать ботов (через запятую)",
+      copy: "Скопировать ссылку для OBS",
+      copied: "Скопировано ✓",
+      needChannel: "Сначала укажи канал",
+      preview: "Превью · тестовые сообщения",
+      obs: (w) => `В OBS: <b>Источник → Браузер</b>, вставь ссылку, размер <b>${w} × 1080</b> (высоту можно меньше) и поставь источник у правого края сцены.`
+    },
+    en: {
+      title: "OBS Chat Box",
+      subtitle: "Set it up and copy the link into OBS",
+      channel: "Twitch channel",
+      anim: "Entry animation",
+      anim_rise: "Rise from below + fade",
+      anim_fade: "Fade only",
+      anim_slide: "Slide in from the side",
+      anim_pop: "Spring pop",
+      anim_none: "No animation",
+      expire: "Messages disappear",
+      life: "Lifetime",
+      never: "∞",
+      sec: "s",
+      max: "Messages on screen",
+      size: "Font",
+      width: "Width",
+      transp: "Background transparency",
+      align: "Stick to side",
+      left: "Left",
+      right: "Right",
+      badges: "Moderator and VIP badges",
+      bots: "Hide bots (comma-separated)",
+      copy: "Copy link for OBS",
+      copied: "Copied ✓",
+      needChannel: "Enter a channel first",
+      preview: "Preview · test messages",
+      obs: (w) => `In OBS: <b>Source → Browser</b>, paste the link, size <b>${w} × 1080</b> (height can be smaller) and place it at the right edge of the scene.`
+    }
+  };
+
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+  };
+
+  let lang = store.get("cb_lang") || ((navigator.language || "").startsWith("ru") ? "ru" : "en");
+  let S = { ...DEFAULTS };
+  try { Object.assign(S, JSON.parse(store.get("cb_settings") || "{}")); } catch {}
+
+  function t(k) { return I18N[lang][k]; }
+
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t(el.dataset.t); });
+    document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.lang === lang));
+    render();
+  }
+
+  function fillForm() {
+    $("channel").value = S.channel;
+    $("anim").value = S.anim;
+    $("expire").checked = S.expire;
+    $("life").value = S.life;
+    $("max").value = S.max;
+    $("size").value = S.size;
+    $("width").value = S.width;
+    $("transp").value = S.transp;
+    $("badges").checked = S.badges;
+    $("bots").value = S.bots;
+  }
+
+  function readForm() {
+    S.channel = $("channel").value.trim().replace(/^.*twitch\.tv\//i, "").replace(/^#/, "").split(/[/?#\s]/)[0].toLowerCase();
+    S.anim = $("anim").value;
+    S.expire = $("expire").checked;
+    S.life = +$("life").value;
+    S.max = +$("max").value;
+    S.size = +$("size").value;
+    S.width = +$("width").value;
+    S.transp = +$("transp").value;
+    S.badges = $("badges").checked;
+    S.bots = $("bots").value;
+  }
+
+  function buildParams() {
+    const p = new URLSearchParams();
+    if (S.channel) p.set("channel", S.channel);
+    p.set("anim", S.anim);
+    p.set("life", S.expire ? S.life : 0);
+    p.set("max", S.max);
+    p.set("size", S.size);
+    p.set("width", S.width);
+    p.set("glass", 100 - S.transp);
+    p.set("align", S.align);
+    if (!S.badges) p.set("badges", "0");
+    const bots = S.bots.split(",").map(s => s.trim().toLowerCase()).filter(Boolean).join(",");
+    if (bots !== DEFAULT_BOTS.split(",").map(s => s.trim()).join(",")) p.set("bots", bots);
+    return p;
+  }
+
+  const chatBase = new URL("chat.html", location.href).href;
+  const chatUrl = () => chatBase + "?" + buildParams().toString();
+
+  let previewTimer, lastPreview = "";
+  function render() {
+    $("lifeV").textContent = S.expire ? S.life + " " + t("sec") : t("never");
+    $("life").disabled = !S.expire;
+    $("maxV").textContent = S.max;
+    $("sizeV").textContent = S.size + "px";
+    $("widthV").textContent = S.width + "px";
+    $("transpV").textContent = S.transp + "%";
+    document.querySelectorAll("#align button").forEach(b => b.classList.toggle("on", b.dataset.v === S.align));
+
+    $("url").textContent = S.channel ? chatUrl() : "—";
+    $("copy").disabled = !S.channel;
+    $("copy").textContent = S.channel ? t("copy") : t("needChannel");
+    $("obsNote").innerHTML = t("obs")(S.width + 32);
+
+    const pv = $("preview");
+    pv.classList.toggle("left", S.align === "left");
+    $("frame").style.width = Math.min(S.width + 32, pv.clientWidth || S.width + 32) + "px";
+
+    // Превью перезагружаем с задержкой, чтобы ползунки не дёргали его на каждый шаг
+    const src = chatUrl() + "&demo=1";
+    if (src !== lastPreview) {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(() => { $("frame").src = src; lastPreview = src; }, 350);
+    }
+    store.set("cb_settings", JSON.stringify(S));
+  }
+
+  document.querySelectorAll("input, select, textarea").forEach(el => {
+    el.addEventListener("input", () => { readForm(); render(); });
+    el.addEventListener("change", () => { readForm(); render(); });
+  });
+  document.querySelectorAll("#align button").forEach(b =>
+    b.addEventListener("click", () => { S.align = b.dataset.v; render(); }));
+  document.querySelectorAll(".lang button").forEach(b =>
+    b.addEventListener("click", () => { lang = b.dataset.lang; store.set("cb_lang", lang); applyLang(); }));
+
+  $("copy").addEventListener("click", async () => {
+    const url = chatUrl();
+    try { await navigator.clipboard.writeText(url); }
+    catch {
+      const r = document.createRange(); r.selectNodeContents($("url"));
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      document.execCommand("copy");
+    }
+    $("copy").textContent = t("copied");
+    setTimeout(() => { $("copy").textContent = t("copy"); }, 1600);
+  });
+  addEventListener("resize", render);
+
+  fillForm();
+  applyLang();
+})();
+</script>
+</body>
+</html>

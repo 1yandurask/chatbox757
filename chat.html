@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat Overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --size: 18px;
+    --w: 400px;
+    --glass: .55;
+    --gap: 8px;
+    --radius: 16px;
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: transparent;
+    overflow: hidden;
+  }
+  body {
+    font-family: "Manrope", "Segoe UI", system-ui, sans-serif;
+    font-size: var(--size);
+    font-weight: 600;
+    color: #f4f2ef;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Лента: новые снизу, старые уходят вверх и мягко растворяются у верхнего края */
+  #chat {
+    position: fixed;
+    inset: 0;
+    padding: 16px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    gap: var(--gap);
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 72px);
+            mask-image: linear-gradient(to bottom, transparent 0, #000 72px);
+  }
+  #chat.left { align-items: flex-start; }
+
+  .msg { max-width: min(var(--w), 100%); flex: none; will-change: transform; }
+
+  /* Стекло. Браузерный источник OBS не умеет размывать то, что под ним в сцене,
+     поэтому эффект собран из тонировки, блика и тонкой рамки. */
+  .card {
+    position: relative;
+    padding: .5em .8em .55em;
+    border-radius: var(--radius);
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    background:
+      linear-gradient(160deg,
+        rgba(255,255,255, calc(var(--glass) * .10)) 0%,
+        rgba(255,255,255, 0) 45%),
+      linear-gradient(135deg,
+        rgba(38,34,31, var(--glass)) 0%,
+        rgba(16,15,17, calc(var(--glass) * .92)) 100%);
+    border: 1px solid rgba(255,255,255, calc(var(--glass) * .16));
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255, calc(var(--glass) * .14)),
+      0 10px 28px rgba(0,0,0, calc(var(--glass) * .35));
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+            backdrop-filter: blur(14px) saturate(140%);
+    text-shadow: 0 1px 2px rgba(0,0,0,.55);
+    will-change: transform, opacity;
+  }
+
+  .badges { display: inline; }
+  .badge {
+    height: 1.05em;
+    width: 1.05em;
+    vertical-align: -.16em;
+    margin-right: .28em;
+    border-radius: 3px;
+  }
+  .badge-fb {
+    display: inline-block;
+    height: 1.05em; width: 1.05em;
+    vertical-align: -.16em;
+    margin-right: .28em;
+    border-radius: 3px;
+  }
+  .badge-fb.moderator { background: #00ad03; }
+  .badge-fb.vip { background: #e005b9; }
+
+  .name { font-weight: 800; letter-spacing: .005em; }
+  .sep { opacity: .55; margin-right: .3em; }
+  .text { font-weight: 600; }
+  .action .name { margin-right: .3em; }
+
+  /* Эмодзи: все слои в одной ячейке грида — так zero-width эмодзи 7TV/BTTV
+     ложатся поверх предыдущего */
+  .em {
+    display: inline-grid;
+    vertical-align: middle;
+    margin: -.25em .06em;
+  }
+  .em img {
+    grid-area: 1 / 1;
+    place-self: center;
+    height: 1.75em;
+    width: auto;
+  }
+
+  .hint .card { font-weight: 600; opacity: .9; }
+  .hint code { font-family: ui-monospace, "JetBrains Mono", monospace; font-size: .85em; }
+</style>
+</head>
+<body>
+<div id="chat"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ---------- Настройки из ссылки ---------- */
+  const DEFAULT_BOTS = [
+    "nightbot", "streamelements", "streamlabs", "moobot", "fossabot",
+    "wizebot", "sery_bot", "soundalerts", "kofistreambot", "botrixoficial",
+    "streamholics", "pokemoncommunitygame", "own3d"
+  ];
+  const P = new URLSearchParams(location.search);
+  const num = (k, d, min, max) => {
+    const v = parseFloat(P.get(k));
+    return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : d;
+  };
+  const CFG = {
+    channel: (P.get("channel") || "").trim().toLowerCase().replace(/^#/, ""),
+    anim: ["rise", "fade", "slide", "pop", "none"].includes(P.get("anim")) ? P.get("anim") : "rise",
+    life: num("life", 0, 0, 3600),          // секунды, 0 = бесконечно
+    max: Math.round(num("max", 10, 1, 50)),
+    size: num("size", 18, 10, 48),
+    width: num("width", 400, 200, 1200),
+    glass: num("glass", 55, 0, 100) / 100,   // плотность стекла
+    badges: P.get("badges") !== "0",
+    align: P.get("align") === "left" ? "left" : "right",
+    bots: new Set((P.has("bots") ? P.get("bots") : DEFAULT_BOTS.join(","))
+      .split(",").map(s => s.trim().toLowerCase()).filter(Boolean)),
+    demo: P.get("demo") === "1"
+  };
+
+  const root = document.documentElement.style;
+  root.setProperty("--size", CFG.size + "px");
+  root.setProperty("--w", CFG.width + "px");
+  root.setProperty("--glass", CFG.glass);
+
+  const list = document.getElementById("chat");
+  if (CFG.align === "left") list.classList.add("left");
+
+  /* ---------- Анимации ---------- */
+  const MOVE_MS = 420;
+  const EASE_OUT = "cubic-bezier(.2,.8,.2,1)";
+  const slideFrom = CFG.align === "left" ? -60 : 60;
+  const ENTER = {
+    rise:  [[{ opacity: 0, transform: "translateY(26px)" }, { opacity: 1, transform: "none" }], 480, EASE_OUT],
+    fade:  [[{ opacity: 0 }, { opacity: 1 }], 450, "ease-out"],
+    slide: [[{ opacity: 0, transform: `translateX(${slideFrom}px)` }, { opacity: 1, transform: "none" }], 480, EASE_OUT],
+    pop:   [[{ opacity: 0, transform: "scale(.82)" }, { opacity: 1, transform: "none" }], 460, "cubic-bezier(.34,1.56,.64,1)"],
+    none:  null
+  };
+  const EXIT = {
+    rise:  [[{ opacity: 1, transform: "none" }, { opacity: 0, transform: "translateY(-10px)" }], 380],
+    fade:  [[{ opacity: 1 }, { opacity: 0 }], 380],
+    slide: [[{ opacity: 1, transform: "none" }, { opacity: 0, transform: `translateX(${slideFrom}px)` }], 380],
+    pop:   [[{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.9)" }], 340],
+    none:  null
+  };
+
+  // FLIP: запоминаем, где элементы были видны, меняем DOM и плавно доводим их до новых мест
+  function flip(mutate) {
+    const before = new Map();
+    for (const el of list.children) before.set(el, el.getBoundingClientRect().top);
+    mutate();
+    for (const [el, top] of before) {
+      if (!el.isConnected) continue;
+      el.getAnimations().forEach(a => a.id === "move" && a.cancel());
+      const dy = top - el.getBoundingClientRect().top;
+      if (Math.abs(dy) < 0.5) continue;
+      const a = el.animate(
+        [{ transform: `translateY(${dy}px)` }, { transform: "translateY(0)" }],
+        { duration: MOVE_MS, easing: EASE_OUT }
+      );
+      a.id = "move";
+    }
+  }
+
+  function addEl(el) {
+    flip(() => list.appendChild(el));
+    const e = ENTER[CFG.anim];
+    if (e) el.firstElementChild.animate(e[0], { duration: e[1], easing: e[2] });
+    if (CFG.life > 0) el._timer = setTimeout(() => removeEl(el), CFG.life * 1000);
+    const alive = [...list.children].filter(n => !n.classList.contains("leaving"));
+    for (let i = 0; i < alive.length - CFG.max; i++) removeEl(alive[i]);
+  }
+
+  function removeEl(el) {
+    if (!el || el.classList.contains("leaving")) return;
+    el.classList.add("leaving");
+    clearTimeout(el._timer);
+    const x = EXIT[CFG.anim];
+    if (!x) { flip(() => el.remove()); return; }
+    const a = el.firstElementChild.animate(x[0], { duration: x[1], easing: "ease-in", fill: "forwards" });
+    a.onfinish = () => flip(() => el.remove());
+  }
+
+  /* ---------- Эмодзи сторонних сервисов ---------- */
+  const emotes = new Map(); // code -> { url, zw }
+  const store = { ffzG: [], bttvG: [], stvG: [], ffzC: [], bttvC: [], stvC: [] };
+  const BTTV_ZW = new Set(["SoSnowy", "IceCold", "SantaHat", "TopHat", "ReinDeer", "CandyCane", "cvMask", "cvHazmat"]);
+
+  function rebuildEmotes() {
+    emotes.clear();
+    // Приоритет: эмодзи канала важнее глобальных, 7TV > BTTV > FFZ
+    for (const k of ["ffzG", "bttvG", "stvG", "ffzC", "bttvC", "stvC"])
+      for (const e of store[k]) emotes.set(e.code, e);
+  }
+
+  const getJSON = url => fetch(url, { cache: "no-cache" }).then(r => r.ok ? r.json() : Promise.reject(r.status));
+
+  const mapBTTV = arr => (arr || []).map(e => ({
+    code: e.code, url: `https://cdn.betterttv.net/emote/${e.id}/2x`, zw: BTTV_ZW.has(e.code)
+  }));
+  const mapFFZ = arr => (arr || []).map(e => ({
+    code: e.code, url: (e.images && (e.images["2x"] || e.images["1x"])) || "", zw: false
+  })).filter(e => e.url);
+  const map7TV = arr => (arr || []).map(e => {
+    const host = e.data && e.data.host;
+    if (!host) return null;
+    return {
+      code: e.name,
+      url: `https:${host.url}/2x.webp`,
+      zw: Boolean((e.flags & 1) || (e.data.flags & 256))
+    };
+  }).filter(Boolean);
+
+  async function loadGlobalEmotes() {
+    const [b, f, s] = await Promise.allSettled([
+      getJSON("https://api.betterttv.net/3/cached/emotes/global"),
+      getJSON("https://api.betterttv.net/3/cached/frankerfacez/emotes/global"),
+      getJSON("https://7tv.io/v3/emote-sets/global")
+    ]);
+    if (b.status === "fulfilled") store.bttvG = mapBTTV(b.value);
+    if (f.status === "fulfilled") store.ffzG = mapFFZ(f.value);
+    if (s.status === "fulfilled") store.stvG = map7TV(s.value.emotes);
+    rebuildEmotes();
+  }
+
+  async function loadChannelEmotes(id) {
+    const [b, f, s] = await Promise.allSettled([
+      getJSON(`https://api.betterttv.net/3/cached/users/twitch/${id}`),
+      getJSON(`https://api.betterttv.net/3/cached/frankerfacez/users/twitch/${id}`),
+      getJSON(`https://7tv.io/v3/users/twitch/${id}`)
+    ]);
+    if (b.status === "fulfilled") store.bttvC = mapBTTV([...(b.value.channelEmotes || []), ...(b.value.sharedEmotes || [])]);
+    if (f.status === "fulfilled") store.ffzC = mapFFZ(f.value);
+    if (s.status === "fulfilled") store.stvC = map7TV(s.value.emote_set && s.value.emote_set.emotes);
+    rebuildEmotes();
+  }
+
+  /* ---------- Отрисовка сообщения ---------- */
+  const TWITCH_DEFAULT_COLORS = ["#FF0000", "#0000FF", "#008000", "#B22222", "#FF7F50", "#9ACD32", "#FF4500",
+    "#2E8B57", "#DAA520", "#D2691E", "#5F9EA0", "#1E90FF", "#FF69B4", "#8A2BE2", "#00FF7F"];
+  const colorCache = new Map();
+
+  // Цвет ника берётся из Twitch; слишком тёмные цвета слегка осветляем, иначе на тёмном стекле их не прочитать
+  function readable(hex) {
+    if (colorCache.has(hex)) return colorCache.get(hex);
+    let [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+    const lum = () => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    let guard = 0;
+    while (lum() < 0.42 && guard++ < 12) {
+      r += (255 - r) * 0.14; g += (255 - g) * 0.14; b += (255 - b) * 0.14;
+    }
+    const out = `rgb(${r | 0},${g | 0},${b | 0})`;
+    colorCache.set(hex, out);
+    return out;
+  }
+  function nameColor(tagColor, login) {
+    if (/^#[0-9a-f]{6}$/i.test(tagColor || "")) return readable(tagColor);
+    let h = 0;
+    for (const c of login) h = (h * 31 + c.charCodeAt(0)) | 0;
+    return readable(TWITCH_DEFAULT_COLORS[Math.abs(h) % TWITCH_DEFAULT_COLORS.length]);
+  }
+
+  const BADGE_URL = {
+    moderator: "https://static-cdn.jtvnw.net/badges/v1/3267646d-33f0-4b17-b3df-f923a41db1d0/2",
+    vip: "https://static-cdn.jtvnw.net/badges/v1/b817aba4-fad8-49e2-b88a-7cc744dfa6ec/2"
+  };
+
+  function emoteNode(url, code) {
+    const wrap = document.createElement("span");
+    wrap.className = "em";
+    wrap.appendChild(emoteImg(url, code));
+    return wrap;
+  }
+  function emoteImg(url, code) {
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = code;
+    img.decoding = "async";
+    // Если картинка эмодзи не загрузилась, показываем его название текстом, а не битую иконку
+    img.onerror = () => {
+      const wrap = img.parentNode;
+      img.remove();
+      if (wrap && !wrap.querySelector("img")) wrap.replaceWith(document.createTextNode(code));
+    };
+    return img;
+  }
+
+  function renderText(text, emotesTag) {
+    const frag = document.createDocumentFragment();
+    const chars = Array.from(text); // позиции Twitch-эмодзи считаются в символах, а не в UTF-16
+    const twitch = [];
+    if (emotesTag) {
+      for (const group of emotesTag.split("/")) {
+        const [id, ranges] = group.split(":");
+        if (!ranges) continue;
+        for (const r of ranges.split(",")) {
+          const [s, e] = r.split("-").map(Number);
+          twitch.push({ s, e, id });
+        }
+      }
+      twitch.sort((a, b) => a.s - b.s);
+    }
+
+    let lastEmote = null;   // последний эмодзи — к нему цепляются zero-width
+    let lastSpace = null;   // пробел перед zero-width убираем, чтобы слой лёг ровно
+
+    const pushWords = str => {
+      for (const part of str.split(/(\s+)/)) {
+        if (!part) continue;
+        if (/^\s+$/.test(part)) {
+          lastSpace = document.createTextNode(" ");
+          frag.appendChild(lastSpace);
+          continue;
+        }
+        const em = emotes.get(part);
+        if (em && em.zw && lastEmote) {
+          if (lastSpace && lastSpace.parentNode === frag) frag.removeChild(lastSpace);
+          lastEmote.appendChild(emoteImg(em.url, part));
+        } else if (em) {
+          lastEmote = emoteNode(em.url, part);
+          frag.appendChild(lastEmote);
+        } else {
+          lastEmote = null;
+          frag.appendChild(document.createTextNode(part));
+        }
+        lastSpace = null;
+      }
+    };
+
+    let cursor = 0;
+    for (const t of twitch) {
+      if (t.s < cursor) continue;
+      pushWords(chars.slice(cursor, t.s).join(""));
+      const code = chars.slice(t.s, t.e + 1).join("");
+      lastEmote = emoteNode(`https://static-cdn.jtvnw.net/emoticons/v2/${t.id}/default/dark/2.0`, code);
+      frag.appendChild(lastEmote);
+      lastSpace = null;
+      cursor = t.e + 1;
+    }
+    pushWords(chars.slice(cursor).join(""));
+    return frag;
+  }
+
+  function buildMessage({ id, userId, login, display, color, badges, text, emotesTag, action }) {
+    const msg = document.createElement("div");
+    msg.className = "msg";
+    msg.dataset.id = id || "";
+    msg.dataset.user = userId || "";
+    const card = document.createElement("div");
+    card.className = "card" + (action ? " action" : "");
+
+    if (CFG.badges && badges.length) {
+      const b = document.createElement("span");
+      b.className = "badges";
+      for (const kind of badges) {
+        const img = document.createElement("img");
+        img.className = "badge";
+        img.src = BADGE_URL[kind];
+        img.alt = kind;
+        img.onerror = () => {
+          const fb = document.createElement("span");
+          fb.className = "badge-fb " + kind;
+          img.replaceWith(fb);
+        };
+        b.appendChild(img);
+      }
+      card.appendChild(b);
+    }
+
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = display || login;
+    name.style.color = nameColor(color, login);
+    card.appendChild(name);
+
+    if (!action) {
+      const sep = document.createElement("span");
+      sep.className = "sep";
+      sep.textContent = ":";
+      card.appendChild(sep);
+    }
+
+    const body = document.createElement("span");
+    body.className = "text";
+    body.appendChild(renderText(text, emotesTag));
+    card.appendChild(body);
+
+    msg.appendChild(card);
+    return msg;
+  }
+
+  /* ---------- Twitch IRC (анонимно, без входа) ---------- */
+  function unescapeTag(v) {
+    return v.replace(/\\(.)/g, (_, c) => ({ s: " ", ":": ";", "\\": "\\", r: "\r", n: "\n" }[c] ?? c));
+  }
+  function parse(line) {
+    const m = { tags: {}, prefix: "", command: "", params: [] };
+    if (line[0] === "@") {
+      const sp = line.indexOf(" ");
+      for (const kv of line.slice(1, sp).split(";")) {
+        const eq = kv.indexOf("=");
+        if (eq === -1) m.tags[kv] = "";
+        else m.tags[kv.slice(0, eq)] = unescapeTag(kv.slice(eq + 1));
+      }
+      line = line.slice(sp + 1);
+    }
+    if (line[0] === ":") {
+      const sp = line.indexOf(" ");
+      m.prefix = line.slice(1, sp);
+      line = line.slice(sp + 1);
+    }
+    let trailing = null;
+    const t = line.indexOf(" :");
+    if (t !== -1) { trailing = line.slice(t + 2); line = line.slice(0, t); }
+    const parts = line.split(" ").filter(Boolean);
+    m.command = parts.shift() || "";
+    m.params = parts;
+    if (trailing !== null) m.params.push(trailing);
+    return m;
+  }
+
+  function onPrivmsg(m) {
+    const login = (m.prefix.split("!")[0] || "").toLowerCase();
+    if (CFG.bots.has(login)) return;
+    let text = m.params[1] || "";
+    let action = false;
+    const am = text.match(/^\u0001ACTION (.*)\u0001$/);
+    if (am) { text = am[1]; action = true; }
+    const badges = (m.tags.badges || "").split(",").map(b => b.split("/")[0])
+      .filter(b => b === "moderator" || b === "vip");
+    addEl(buildMessage({
+      id: m.tags.id,
+      userId: m.tags["user-id"],
+      login,
+      display: m.tags["display-name"],
+      color: m.tags.color,
+      badges,
+      text,
+      emotesTag: m.tags.emotes,
+      action
+    }));
+  }
+
+  let roomId = null;
+  function handle(m) {
+    switch (m.command) {
+      case "PING": ws.send("PONG :tmi.twitch.tv"); break;
+      case "RECONNECT": ws.close(); break;
+      case "ROOMSTATE":
+        if (m.tags["room-id"] && m.tags["room-id"] !== roomId) {
+          roomId = m.tags["room-id"];
+          loadChannelEmotes(roomId);
+        }
+        break;
+      case "PRIVMSG": onPrivmsg(m); break;
+      case "CLEARMSG":
+        list.querySelectorAll(`.msg[data-id="${CSS.escape(m.tags["target-msg-id"] || "")}"]`).forEach(removeEl);
+        break;
+      case "CLEARCHAT": {
+        const uid = m.tags["target-user-id"];
+        const sel = uid ? `.msg[data-user="${CSS.escape(uid)}"]` : ".msg";
+        list.querySelectorAll(sel).forEach(removeEl);
+        break;
+      }
+    }
+  }
+
+  let ws, backoff = 1000;
+  function connect() {
+    ws = new WebSocket("wss://irc-ws.chat.twitch.tv:443");
+    ws.onopen = () => {
+      ws.send("CAP REQ :twitch.tv/tags twitch.tv/commands");
+      ws.send("PASS SCHMOOPIIE");
+      ws.send("NICK justinfan" + (10000 + Math.floor(Math.random() * 80000)));
+      ws.send("JOIN #" + CFG.channel);
+      backoff = 1000;
+    };
+    ws.onmessage = e => String(e.data).split("\r\n").forEach(l => l && handle(parse(l)));
+    ws.onclose = () => { setTimeout(connect, backoff); backoff = Math.min(backoff * 2, 30000); };
+  }
+
+  /* ---------- Демо для превью ---------- */
+  function startDemo() {
+    const users = [
+      ["Zhenya_757", "#FF7F50", []], ["MoonPie", "#1E90FF", ["vip"]], ["krasniy_kot", "#B22222", []],
+      ["ModDed", "#00FF7F", ["moderator"]], ["lazy_tea", "", []], ["Pixelwitch", "#8A2BE2", []],
+      ["gg_wp_ez", "#DAA520", []], ["NightOwl", "#FF69B4", ["moderator", "vip"]]
+    ];
+    const lines = [
+      "го ещё один забег", "это было красиво", "лол что сейчас произошло", "привет всем!",
+      "трек огонь, что играет?", "ставлю всё на этот заход", "wait what", "ахахах",
+      "GG", "ну это уже слишком", "очень уютный стрим сегодня", "кто тоже с работы смотрит?"
+    ];
+    let n = 0;
+    const tick = () => {
+      const [display, color, badges] = users[Math.floor(Math.random() * users.length)];
+      let text = lines[Math.floor(Math.random() * lines.length)];
+      const codes = [...emotes.keys()];
+      let emotesTag = "";
+      const roll = Math.random();
+      if (codes.length && roll < 0.45) {
+        text += " " + codes[Math.floor(Math.random() * codes.length)];
+      } else if (roll < 0.6) {
+        const start = Array.from(text).length + 1;
+        text += " Kappa";
+        emotesTag = `25:${start}-${start + 4}`;
+      }
+      addEl(buildMessage({
+        id: "demo" + n, userId: "demo" + display, login: display.toLowerCase(),
+        display, color, badges, text, emotesTag, action: false
+      }));
+      n++;
+      setTimeout(tick, 900 + Math.random() * 1500);
+    };
+    tick();
+  }
+
+  function showHint() {
+    const el = document.createElement("div");
+    el.className = "msg hint";
+    el.innerHTML = '<div class="card">Укажите канал в ссылке: <code>?channel=имя_канала</code></div>';
+    list.appendChild(el);
+  }
+
+  /* ---------- Старт ---------- */
+  loadGlobalEmotes();
+  setInterval(() => { loadGlobalEmotes(); if (roomId) loadChannelEmotes(roomId); }, 10 * 60 * 1000);
+
+  if (CFG.channel) connect();
+  if (CFG.demo) startDemo();
+  if (!CFG.channel && !CFG.demo) showHint();
+})();
+</script>
+</body>
+</html>
