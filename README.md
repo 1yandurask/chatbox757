@@ -2,8 +2,8 @@
 
 # 💬 Chat Box для OBS
 
-**Стеклянный оверлей чата Twitch с плавными анимациями.**
-**Без регистрации и без бэкенда, настраивается за минуту.**
+**Оверлей чата Twitch с плавными анимациями.**
+**Без регистрации, настраивается за минуту.**
 
 ![HTML](https://img.shields.io/badge/HTML-single_file-e34f26?style=flat-square&logo=html5&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-f7df1e?style=flat-square&logo=javascript&logoColor=black)
