@@ -1,547 +1,428 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>757 Now Playing · Setup</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat Box для OBS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=Syne:wght@500;600;700&family=Unbounded:wght@800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0d0d12; --panel: #15151c; --line: rgba(255,255,255,.09); --text: #e9e9f0; --muted: #8b8b9a;
-    --accent: #b9b4ff; --ok: #7fd6a4; --err: #ff8f8f;
+    --bg: #0d0c0e;
+    --panel: rgba(30,27,26,.72);
+    --line: rgba(255,255,255,.08);
+    --text: #f4f2ef;
+    --muted: #a39d97;
+    --accent: #d9a46b;
+    --accent-ink: #1a140e;
+    --field: rgba(255,255,255,.05);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 "Syne", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-  main { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
-  header { position: relative; margin-bottom: 28px; }
-  header .wm { position: absolute; right: 0; top: -18px; font: 800 84px/1 "Unbounded", sans-serif; letter-spacing: -3px;
-               color: transparent; -webkit-text-stroke: 1px rgba(255,255,255,.12); transform: rotate(-12deg); pointer-events: none; }
-  h1 { margin: 0; font-size: 28px; font-weight: 700; }
-  header p { margin: 6px 0 0; color: var(--muted); }
-  section { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 14px; }
-  h2 { margin: 0 0 4px; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-  h2 .n { font: 500 12px "JetBrains Mono", monospace; color: var(--muted); }
-  .hint { margin: 0 0 14px; color: var(--muted); font-size: 13.5px; }
-  .hint a { color: var(--accent); }
-  ol.steps { margin: 0 0 14px; padding-left: 20px; color: var(--muted); font-size: 13.5px; }
-  ol.steps li { margin: 2px 0; }
-  ol.steps a { color: var(--accent); }
-  .field { display: flex; gap: 8px; flex-wrap: wrap; }
-  .field + .field { margin-top: 10px; }
-  label.lbl { flex: 0 0 140px; align-self: center; font-size: 13.5px; color: var(--muted); }
-  input, select {
-    flex: 1 1 240px; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
-    background: #0f0f15; color: var(--text); font: 500 13px "JetBrains Mono", monospace;
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Manrope", system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
   }
-  input:focus, select:focus { outline: none; border-color: rgba(185,180,255,.5); }
-  button {
-    padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); cursor: pointer;
-    background: #1e1e28; color: var(--text); font: 600 13.5px "Syne", sans-serif;
+  .wrap {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 20px;
+    padding: 20px;
+    min-height: 100vh;
   }
-  button:hover { background: #262632; }
-  button.primary { background: var(--accent); color: #14141c; border-color: transparent; }
-  button.primary:hover { filter: brightness(1.05); }
-  .status { margin-top: 10px; font-size: 13.5px; color: var(--muted); }
-  .status.ok { color: var(--ok); } .status.err { color: var(--err); }
-  .preview { margin-top: 14px; border-radius: 14px; overflow: hidden; border: 1px solid var(--line);
-             background: radial-gradient(circle at 20% 30%, #2b2b45, transparent 55%), radial-gradient(circle at 80% 80%, #3d2633, transparent 50%), #101016; }
-  .preview iframe { display: block; width: 100%; height: 420px; border: 0; }
-  details.guide { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 0; margin-bottom: 14px; }
-  details.guide summary { cursor: pointer; padding: 16px 20px; font-weight: 700; list-style: none; display: flex; justify-content: space-between; align-items: center; }
-  details.guide summary::-webkit-details-marker { display: none; }
-  details.guide summary::after { content: '+'; font: 500 18px "JetBrains Mono", monospace; color: var(--muted); }
-  details.guide[open] summary::after { content: '−'; }
-  .guide-body { padding: 0 20px 18px; font-size: 14px; color: #c9c9d4; }
-  .guide-body h3 { margin: 16px 0 6px; font-size: 14px; color: var(--text); }
-  .guide-body ol, .guide-body ul { margin: 0; padding-left: 20px; }
-  .guide-body li { margin: 3px 0; }
-  .guide-body a { color: var(--accent); }
-  .note { font-size: 13px; color: var(--muted); margin-top: 10px; }
-  .look { margin-top: 14px; }
-  .sr-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .sr-status { font-size: 13px; color: var(--muted); }
-  .sr-status.live::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 7px; vertical-align: 1px; }
-  .sr-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-  .sr-item { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 12px; background: #0f0f15; border: 1px solid var(--line); }
-  .sr-item.playing { border-color: rgba(127, 214, 164, .45); }
-  .sr-item img { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: #1c1c24; flex: 0 0 auto; }
-  .sr-n { flex: 0 0 22px; text-align: center; font: 500 12px "JetBrains Mono", monospace; color: var(--muted); }
-  .sr-meta { flex: 1; min-width: 0; }
-  .sr-t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sr-a { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sr-by { font: 500 11.5px "JetBrains Mono", monospace; color: var(--muted); margin-top: 2px; }
-  .sr-badge { color: var(--ok); }
-  .sr-item a.btn { flex: 0 0 auto; padding: 8px 11px; border-radius: 10px; background: #1db954; color: #0b0b0f; font: 700 12.5px "Syne", sans-serif; text-decoration: none; }
-  .sr-del { flex: 0 0 auto; width: 34px; height: 34px; padding: 0; border-radius: 10px; background: #1e1e28; color: var(--muted); font-size: 15px; }
-  .sr-del:hover { background: #3a1e24; color: var(--err); }
-  .sr-del:disabled { opacity: .35; cursor: default; }
-  .sr-empty { margin-top: 12px; color: var(--muted); font-size: 13.5px; }
-  @media (max-width: 480px) { .sr-item img { display: none; } }
-  input[type=range] { padding: 0; border: 0; background: none; accent-color: var(--accent); height: 38px; }
-  #gtVal { min-width: 42px; text-align: right; font-family: "JetBrains Mono", monospace; }
-  .unit { align-self: center; font-size: 13.5px; color: var(--muted); }
-  code { font: 500 12.5px "JetBrains Mono", monospace; color: var(--accent); }
-  @media (max-width: 480px) { label.lbl { flex-basis: 100%; } }
+  @media (max-width: 860px) {
+    .wrap { grid-template-columns: 1fr; padding: 16px; }
+    .preview { position: relative !important; height: 560px !important; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 22px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    align-self: start;
+  }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  h1 { font-size: 20px; font-weight: 800; margin: 0; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; font-weight: 500; }
+
+  .lang { display: flex; background: var(--field); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+  .lang button {
+    border: 0; background: transparent; color: var(--muted);
+    font: 700 12px "JetBrains Mono", monospace; padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  }
+  .lang button.on { background: var(--text); color: var(--bg); }
+
+  label.f { display: flex; flex-direction: column; gap: 8px; }
+  .lbl { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+  .val { font-family: "JetBrains Mono", monospace; color: var(--text); font-size: 12px; }
+
+  input[type=text], select, textarea {
+    width: 100%;
+    background: var(--field);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 11px 12px;
+    font: 600 15px "Manrope", sans-serif;
+    outline: none;
+    transition: border-color .2s;
+  }
+  input[type=text]:focus, select:focus, textarea:focus { border-color: rgba(217,164,107,.6); }
+  select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+  select option { background: #1d1a19; }
+  textarea { resize: vertical; min-height: 64px; font: 500 12px/1.5 "JetBrains Mono", monospace; }
+
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=range]:disabled { opacity: .35; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .seg { display: flex; background: var(--field); border: 1px solid var(--line); border-radius: 12px; padding: 3px; }
+  .seg button {
+    flex: 1; border: 0; background: transparent; color: var(--muted); padding: 8px;
+    border-radius: 9px; font: 700 13px "Manrope", sans-serif; cursor: pointer;
+  }
+  .seg button.on { background: rgba(255,255,255,.1); color: var(--text); }
+
+  .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 14px; cursor: pointer; }
+  .toggle input { appearance: none; width: 40px; height: 24px; border-radius: 999px; background: rgba(255,255,255,.12); position: relative; cursor: pointer; transition: background .2s; flex: none; margin: 0; }
+  .toggle input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .25s cubic-bezier(.2,.8,.2,1); }
+  .toggle input:checked { background: var(--accent); }
+  .toggle input:checked::after { transform: translateX(16px); }
+
+  hr { border: 0; border-top: 1px solid var(--line); margin: 0; }
+
+  .out { display: flex; flex-direction: column; gap: 10px; }
+  .url {
+    font: 500 12px/1.5 "JetBrains Mono", monospace; color: var(--muted);
+    background: var(--field); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
+    word-break: break-all; max-height: 92px; overflow: auto;
+  }
+  .btn {
+    border: 0; border-radius: 12px; padding: 13px; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); font: 800 15px "Manrope", sans-serif;
+    transition: transform .15s, filter .2s;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .note { font-size: 12.5px; color: var(--muted); line-height: 1.55; font-weight: 500; }
+  .note b { color: var(--text); font-weight: 700; }
+
+  /* Превью: «игровой» фон, чтобы было видно стекло */
+  .preview {
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    position: sticky;
+    top: 20px;
+    align-self: start;
+    height: calc(100vh - 40px);
+    min-height: 480px;
+    background:
+      radial-gradient(60% 50% at 20% 25%, rgba(255,140,60,.55), transparent 70%),
+      radial-gradient(50% 60% at 80% 70%, rgba(60,120,255,.45), transparent 70%),
+      radial-gradient(40% 40% at 55% 40%, rgba(180,60,200,.35), transparent 70%),
+      linear-gradient(160deg, #2a2320, #121418);
+  }
+  .preview .tag {
+    position: absolute; top: 14px; left: 16px;
+    font: 500 11px "JetBrains Mono", monospace; letter-spacing: .08em; text-transform: uppercase;
+    color: rgba(255,255,255,.7); background: rgba(0,0,0,.35); padding: 5px 9px; border-radius: 999px;
+  }
+  .preview iframe {
+    position: absolute; top: 0; bottom: 0; right: 0;
+    height: 100%; border: 0; background: transparent;
+  }
+  .preview.left iframe { right: auto; left: 0; }
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <div class="wm">757</div>
-    <h1>Now Playing · Setup</h1>
-    <p>Spotify → Last.fm → OBS. Viewers type <code>!last</code>, <code>!song</code>, <code>!top</code> or <code>!мясо</code> and the answer shows up on stream.</p>
-  </header>
+<div class="wrap">
+  <section class="panel">
+    <header>
+      <div>
+        <h1 data-t="title"></h1>
+        <div class="sub" data-t="subtitle"></div>
+      </div>
+      <div class="lang">
+        <button data-lang="ru">RU</button>
+        <button data-lang="en">EN</button>
+      </div>
+    </header>
 
-  <details class="guide" lang="ru">
-    <summary>📖 Инструкция на русском — как подключить оверлей</summary>
-    <div class="guide-body">
-      <p>Оверлей показывает на стриме трек, который играет у тебя в Spotify, и отвечает на команды чата. Все настройки хранятся только в твоём браузере — автор сайта их не видит. Сервер, Spotify Premium и приложение Twitch не нужны.</p>
+    <label class="f">
+      <span class="lbl"><span data-t="channel"></span></span>
+      <input type="text" id="channel" placeholder="channel_name" autocomplete="off" spellcheck="false">
+    </label>
 
-      <h3>1. Last.fm (5 минут, один раз)</h3>
-      <ol>
-        <li>Зарегистрируйся на <a href="https://www.last.fm/join" target="_blank" rel="noopener">last.fm</a> — это бесплатно.</li>
-        <li>Открой <a href="https://www.last.fm/settings/applications" target="_blank" rel="noopener">Settings → Applications</a> и подключи <b>Spotify</b>. Теперь Last.fm видит, что ты слушаешь.</li>
-        <li>В <a href="https://www.last.fm/settings/privacy" target="_blank" rel="noopener">Settings → Privacy</a> выключи <b>Hide recent listening</b>.</li>
-        <li>Открой <a href="https://www.last.fm/api/account/create" target="_blank" rel="noopener">last.fm/api/account/create</a>, впиши любое название и описание, Callback URL оставь пустым. Скопируй <b>API key</b> (не Shared secret).</li>
-      </ol>
-
-      <h3>2. Настройка на этой странице</h3>
-      <ol>
-        <li><b>01</b> — впиши ник Last.fm.</li>
-        <li><b>02</b> — вставь API key и нажми <b>Check</b>. Должно появиться «✓ Works» с последним треком. Включи музыку в Spotify, если трека нет.</li>
-        <li><b>03</b> — впиши имя своего Twitch-канала. Выбери, куда выезжает панель команд: <i>Below</i>, если оверлей будет в верхнем углу, <i>Above</i> — если в нижнем. Выставь кулдауны в минутах.</li>
-        <li><b>05</b> — нажми <b>Copy</b>.</li>
-      </ol>
-
-      <h3>3. OBS</h3>
-      <ol>
-        <li>Источники → <b>+</b> → <b>Браузер</b>.</li>
-        <li>В поле URL вставь скопированную ссылку, ширина <b>400</b>, высота <b>420</b>.</li>
-        <li>Перетащи источник в нужный угол экрана. Пустое место вокруг плашки прозрачное.</li>
-      </ol>
-
-      <h3>Заказ треков</h3>
-      <ol>
-        <li>Открой <a href="https://twitchtokengenerator.com" target="_blank" rel="noopener">twitchtokengenerator.com</a>, выбери <b>Bot Chat Token</b> и войди основным аккаунтом.</li>
-        <li>Скопируй <b>Access Token</b>, вставь его в блок <b>04</b> и нажми <b>Check</b>. С этого аккаунта бот будет отвечать в чат.</li>
-        <li>Держи эту страницу открытой во время стрима: наверху будет список заявок с кнопкой «Open in Spotify». Трек включаешь сам, а когда он доиграет, заявка пропадёт.</li>
-      </ol>
-
-      <h3>Команды для зрителей</h3>
-      <ul>
-        <li><code>!song</code> — подсветить текущий трек.</li>
-        <li><code>!last</code> — последние 5 треков.</li>
-        <li><code>!top</code> — твой топ-5 за выбранный период.</li>
-        <li><code>!мясо</code> — реакция 🥩 на текущий трек.</li>
-        <li><code>!sr Исполнитель - Трек</code> — заказать трек (не больше 2 заявок, раз в 5 минут).</li>
-        <li><code>!queue</code> — три следующие заявки в чате.</li>
-        <li><code>!next</code>, <code>!remove N</code> и <code>!clear</code> — следующая заявка, удалить заявку №N, очистить очередь. Только для тебя и модераторов. На этой странице для этого есть кнопки ✕ и Clear queue.</li>
-      </ul>
-
-      <h3>Если что-то не работает</h3>
-      <ul>
-        <li><b>Check Last.fm settings</b> на плашке — неверный ник или ключ, либо скрыта история прослушиваний (пункт 1.3).</li>
-        <li><b>Last.fm connection error</b> — нет связи с Last.fm, проверь интернет или VPN.</li>
-        <li>Трек не меняется — проверь, что Spotify подключён к Last.fm, и что трек появляется у тебя в профиле на last.fm.</li>
-        <li>Изменил настройки — заново скопируй ссылку и вставь её в OBS.</li>
-        <li>Не показывай ссылку из пункта 05 на стриме — в ней твой ключ Last.fm и токен Twitch.</li>
-      </ul>
-    </div>
-  </details>
-
-  <section id="srBox">
-    <div class="sr-head">
-      <h2 style="margin:0">Song requests</h2>
-      <span class="sr-status" id="srStatus">Fill in Last.fm (01–02) and your channel (03) to see requests here.</span>
-    </div>
-    <ol class="sr-list" id="srList"></ol>
-    <div class="sr-empty" id="srEmpty" hidden>No requests yet. Viewers request with <code>!sr Artist - Track</code>.</div>
-    <p class="note">Keep this tab open during the stream — requests sent while it's closed won't show up here (the overlay in OBS still gets them and answers in chat). The ✕ and <b>Clear queue</b> buttons send <code>!remove</code> / <code>!next</code> / <code>!clear</code> to chat from your account (needs the token in block 04), so the overlay updates too. <button class="ghost" id="srReset" style="padding:4px 8px">Clear queue</button></p>
-  </section>
-
-  <section>
-    <h2><span class="n">01</span>Last.fm account</h2>
-    <ol class="steps">
-      <li>Sign up at <a href="https://www.last.fm/join" target="_blank" rel="noopener">last.fm</a> (free).</li>
-      <li>In <a href="https://www.last.fm/settings/applications" target="_blank" rel="noopener">Settings → Applications</a>, connect <b>Spotify</b> scrobbling.</li>
-      <li>In <a href="https://www.last.fm/settings/privacy" target="_blank" rel="noopener">Settings → Privacy</a>, make sure <b>Hide recent listening</b> is off.</li>
-    </ol>
-    <div class="field">
-      <label class="lbl" for="lu">Last.fm username</label>
-      <input id="lu" placeholder="your_lastfm_name" autocomplete="off" spellcheck="false">
-    </div>
-  </section>
-
-  <section>
-    <h2><span class="n">02</span>Last.fm API key</h2>
-    <ol class="steps">
-      <li>Open <a href="https://www.last.fm/api/account/create" target="_blank" rel="noopener">last.fm/api/account/create</a>.</li>
-      <li>Fill in any app name and description, leave the callback URL empty, submit.</li>
-      <li>Copy the <b>API key</b> (not the shared secret).</li>
-    </ol>
-    <div class="field">
-      <input id="lk" placeholder="Last.fm API key" autocomplete="off" spellcheck="false">
-      <button class="primary" id="check">Check</button>
-    </div>
-    <div class="status" id="status"></div>
-  </section>
-
-  <section>
-    <h2><span class="n">03</span>Twitch chat</h2>
-    <p class="hint">No Twitch login or app needed — chat is read anonymously. If the overlay sits in a bottom corner, open the panel <b>above</b> the card.</p>
-    <div class="field">
-      <label class="lbl" for="channel">Channel name</label>
-      <input id="channel" placeholder="your_channel" autocomplete="off" spellcheck="false">
-    </div>
-    <div class="field">
-      <label class="lbl" for="pos">!last panel opens</label>
-      <select id="pos">
-        <option value="below">Below the card (top corner)</option>
-        <option value="above">Above the card (bottom corner)</option>
+    <label class="f">
+      <span class="lbl"><span data-t="anim"></span></span>
+      <select id="anim">
+        <option value="rise" data-t="anim_rise"></option>
+        <option value="fade" data-t="anim_fade"></option>
+        <option value="slide" data-t="anim_slide"></option>
+        <option value="pop" data-t="anim_pop"></option>
+        <option value="none" data-t="anim_none"></option>
       </select>
+    </label>
+
+    <div class="f" style="display:flex;flex-direction:column;gap:10px">
+      <label class="toggle"><span data-t="expire"></span><input type="checkbox" id="expire"></label>
+      <label class="f">
+        <span class="lbl"><span data-t="life"></span><span class="val" id="lifeV"></span></span>
+        <input type="range" id="life" min="5" max="300" step="5">
+      </label>
     </div>
-    <div class="field">
-      <label class="lbl" for="cdLast">!last cooldown</label>
-      <input id="cdLast" type="number" min="0" max="60" step="0.5" inputmode="decimal">
-      <span class="unit">min</span>
+
+    <label class="f">
+      <span class="lbl"><span data-t="max"></span><span class="val" id="maxV"></span></span>
+      <input type="range" id="max" min="1" max="30" step="1">
+    </label>
+
+    <div class="row2">
+      <label class="f">
+        <span class="lbl"><span data-t="size"></span><span class="val" id="sizeV"></span></span>
+        <input type="range" id="size" min="12" max="36" step="1">
+      </label>
+      <label class="f">
+        <span class="lbl"><span data-t="width"></span><span class="val" id="widthV"></span></span>
+        <input type="range" id="width" min="240" max="800" step="10">
+      </label>
     </div>
-    <div class="field">
-      <label class="lbl" for="cdSong">!song cooldown</label>
-      <input id="cdSong" type="number" min="0" max="60" step="0.5" inputmode="decimal">
-      <span class="unit">min</span>
+
+    <label class="f">
+      <span class="lbl"><span data-t="transp"></span><span class="val" id="transpV"></span></span>
+      <input type="range" id="transp" min="0" max="100" step="1">
+    </label>
+
+    <div class="f" style="display:flex;flex-direction:column;gap:8px">
+      <span class="lbl"><span data-t="align"></span></span>
+      <div class="seg" id="align">
+        <button data-v="left" data-t="left"></button>
+        <button data-v="right" data-t="right"></button>
+      </div>
     </div>
-    <div class="field">
-      <label class="lbl" for="tp">!top period</label>
-      <select id="tp">
-        <option value="7day">Last 7 days</option>
-        <option value="1month">Last month</option>
-        <option value="3month">Last 3 months</option>
-        <option value="6month">Last 6 months</option>
-        <option value="12month">Last year</option>
-        <option value="overall">All time</option>
-      </select>
+
+    <label class="toggle"><span data-t="badges"></span><input type="checkbox" id="badges"></label>
+
+    <label class="f">
+      <span class="lbl"><span data-t="bots"></span></span>
+      <textarea id="bots" spellcheck="false"></textarea>
+    </label>
+
+    <hr>
+
+    <div class="out">
+      <div class="url" id="url"></div>
+      <button class="btn" id="copy" data-t="copy"></button>
+      <div class="note" id="obsNote"></div>
     </div>
-    <div class="field">
-      <label class="lbl" for="cdTop">!top cooldown</label>
-      <input id="cdTop" type="number" min="0" max="60" step="0.5" inputmode="decimal">
-      <span class="unit">min</span>
-    </div>
-    <div class="field">
-      <label class="lbl" for="autoLast">Auto-show last played</label>
-      <input id="autoLast" type="number" min="0" max="240" step="1" inputmode="numeric">
-      <span class="unit">min</span>
-    </div>
-    <div class="field">
-      <label class="lbl" for="autoTop">Auto-show top tracks</label>
-      <input id="autoTop" type="number" min="0" max="240" step="1" inputmode="numeric">
-      <span class="unit">min</span>
-    </div>
-    <p class="note">Auto-show pops the panel up on its own every N minutes, no chat command needed; 0 = off.</p>
-    <p class="note">Cooldowns are shared by the whole chat; 0 = no cooldown. <code>!мясо</code> has no shared cooldown — each viewer can send meat once every 5 seconds.</p>
   </section>
 
-  <section>
-    <h2><span class="n">04</span>Song requests</h2>
-    <ol class="steps">
-      <li>Open <a href="https://twitchtokengenerator.com" target="_blank" rel="noopener">twitchtokengenerator.com</a> → <b>Bot Chat Token</b>, log in with your main account.</li>
-      <li>Copy the <b>Access Token</b>, paste it below and press <b>Check</b>. Replies to <code>!sr</code>, <code>!queue</code>, <code>!next</code>, <code>!clear</code> will be sent from that account.</li>
-    </ol>
-    <div class="field">
-      <input id="tt" type="password" placeholder="Twitch access token" autocomplete="off" spellcheck="false">
-      <button class="primary" id="ttCheck">Check</button>
-    </div>
-    <div class="status" id="ttStatus"></div>
-    <div class="field" style="margin-top:14px">
-      <label class="lbl" for="np">“Requested” line</label>
-      <select id="np">
-        <option value="below">Below the card</option>
-        <option value="above">Above the card</option>
-      </select>
-    </div>
-    <div class="field">
-      <label class="lbl" for="rm">Requests per viewer</label>
-      <input id="rm" type="number" min="1" max="10" step="1" inputmode="numeric">
-    </div>
-    <div class="field">
-      <label class="lbl" for="rc">!sr cooldown</label>
-      <input id="rc" type="number" min="0" max="60" step="0.5" inputmode="decimal">
-      <span class="unit">min</span>
-    </div>
-    <p class="note"><code>!sr Artist - Track</code> — anyone. <code>!queue</code> — anyone, shows the next 3. <code>!next</code>, <code>!remove N</code> and <code>!clear</code> — you and moderators only. A request disappears by itself once it has played. The token is stored only in this browser and in your OBS link.</p>
+  <section class="preview" id="preview">
+    <span class="tag" data-t="preview"></span>
+    <iframe id="frame" title="preview" allowtransparency="true"></iframe>
   </section>
+</div>
 
-  <section>
-    <h2><span class="n">05</span>OBS link</h2>
-    <p class="hint">Add a <b>Browser</b> source in OBS with this URL, width <code>400</code>, height <code>420</code>. Better not to show it on stream — it contains your API key.</p>
-    <div class="field">
-      <input id="link" type="password" readonly placeholder="Fill in steps 01–02 first">
-      <button id="linkShow">Show</button>
-      <button data-copy="link">Copy</button>
-    </div>
-    <div class="field look">
-      <label class="lbl" for="gt">Background transparency</label>
-      <input id="gt" type="range" min="0" max="100" step="5">
-      <span class="unit" id="gtVal">70%</span>
-    </div>
-    <p class="note">If you change anything here, paste the new link into the OBS source.</p>
-    <div class="preview"><iframe id="preview" src="overlay.html#demo" title="Preview"></iframe></div>
-  </section>
-</main>
-
-<script src="sr-core.js"></script>
 <script>
 (() => {
-  'use strict';
-  const $ = id => document.getElementById(id);
-  const OVERLAY = new URL('overlay.html', location.origin + location.pathname).href;
-  const K = { lu: 'np757.setup.lfmUser', lk: 'np757.setup.lfmKey', chan: 'np757.setup.channel', pos: 'np757.setup.pos', cdLast: 'np757.setup.cdLast', cdSong: 'np757.setup.cdSong', cdTop: 'np757.setup.cdTop', tp: 'np757.setup.tp', gt: 'np757.setup.gt', al: 'np757.setup.autoLast', at: 'np757.setup.autoTop', tt: 'np757.setup.twToken', tu: 'np757.setup.twLogin', np: 'np757.setup.nextPos', rm: 'np757.setup.reqMax', rc: 'np757.setup.reqCd' };
-  const reqMax = () => { const n = parseInt(ls.get(K.rm), 10); return Number.isFinite(n) && n >= 1 ? Math.min(n, 10) : 2; };
-  const reqCd = () => { const n = parseFloat(String(ls.get(K.rc) ?? '').replace(',', '.')); return Number.isFinite(n) && n >= 0 ? Math.min(n, 60) : 5; };
-  const autoMin = (v) => { const n = parseInt(v, 10); return Number.isFinite(n) && n > 0 ? Math.min(n, 240) : 0; };
-  const transparency = () => { const n = parseInt(ls.get(K.gt), 10); return Number.isFinite(n) ? Math.min(Math.max(n, 0), 100) : 70; };
-  const minutes = (v, d) => { const n = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(n) && n >= 0 ? Math.min(n, 60) : d; };
-  const ls = {
-    get: k => { try { return localStorage.getItem(k); } catch { return null; } },
-    set: (k, v) => { try { v == null || v === '' ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
+  "use strict";
+  const DEFAULT_BOTS = "nightbot, streamelements, streamlabs, moobot, fossabot, wizebot, sery_bot, soundalerts, kofistreambot, botrixoficial, streamholics, pokemoncommunitygame, own3d";
+  const DEFAULTS = {
+    channel: "", anim: "rise", expire: false, life: 30, max: 10,
+    size: 18, width: 400, transp: 45, align: "right", badges: true, bots: DEFAULT_BOTS
   };
 
-  const b64url = bytes => { let s = ''; bytes.forEach(b => { s += String.fromCharCode(b); }); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
-  const encodeCfg = o => b64url(new TextEncoder().encode(JSON.stringify(o)));
-  const cleanName = s => String(s || '').trim().replace(/^.*\/(user|twitch\.tv)\//i, '').replace(/^.*twitch\.tv\//i, '').replace(/^#/, '').replace(/\/.*$/, '');
-  const cleanChannel = s => cleanName(s).replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
-
-  function setStatus(text, cls) {
-    const el = $('status');
-    el.className = 'status' + (cls ? ' ' + cls : '');
-    el.textContent = text;
-  }
-
-  function renderLink() {
-    const lu = cleanName(ls.get(K.lu)), lk = (ls.get(K.lk) || '').trim();
-    const tl = cleanChannel(ls.get(K.chan)), pos = ls.get(K.pos) || 'below';
-    const cl = Math.round(minutes(ls.get(K.cdLast), 3) * 60), cs = Math.round(minutes(ls.get(K.cdSong), 3) * 60);
-    const ct = Math.round(minutes(ls.get(K.cdTop), 3) * 60), tp = ls.get(K.tp) || '7day';
-    const al = autoMin(ls.get(K.al)), at = autoMin(ls.get(K.at));
-    $('link').value = lu && lk ? OVERLAY + '#cfg=' + encodeCfg({ v: 3, lu, lk, tl: tl || null, pos, cl, cs, ct, tp, gt: transparency(), al, at,
-      tt: ls.get(K.tt) || null, tu: ls.get(K.tu) || null, np: ls.get(K.np) || 'below', rm: reqMax(), rc: reqCd() }) : '';
-  }
-
-  function setPreview() {
-    $('preview').src = 'overlay.html#demo&pos=' + (ls.get(K.pos) || 'below') + '&np=' + (ls.get(K.np) || 'below') + '&gt=' + transparency() + '&t=' + Date.now();
-  }
-
-  async function check() {
-    const lu = cleanName($('lu').value), lk = $('lk').value.trim();
-    if (!lu || !lk) return setStatus('Enter your Last.fm username and API key first.', 'err');
-    setStatus('Checking…');
-    try {
-      const u = new URL('https://ws.audioscrobbler.com/2.0/');
-      u.search = new URLSearchParams({ method: 'user.getrecenttracks', user: lu, api_key: lk, format: 'json', limit: '1' });
-      const r = await fetch(u.href);
-      const j = await r.json().catch(() => null);
-      if (!j) return setStatus(`Last.fm answered with HTTP ${r.status}.`, 'err');
-      if (j.error) return setStatus('Last.fm: ' + (j.message || 'error ' + j.error), 'err');
-      let t = j.recenttracks && j.recenttracks.track;
-      if (Array.isArray(t)) t = t[0];
-      if (!t) return setStatus('✓ Key and username work, but nothing has been scrobbled yet. Play something in Spotify.', 'ok');
-      const artist = (t.artist && (t.artist['#text'] || t.artist.name)) || '';
-      const np = t['@attr'] && t['@attr'].nowplaying === 'true';
-      setStatus(`✓ Works — ${np ? 'now playing' : 'last played'}: ${artist} — ${t.name}`, 'ok');
-    } catch (e) {
-      setStatus("Can't reach Last.fm: " + e.message, 'err');
+  const I18N = {
+    ru: {
+      title: "Chat Box для OBS",
+      subtitle: "Настрой и скопируй ссылку в OBS",
+      channel: "Канал Twitch",
+      anim: "Анимация появления",
+      anim_rise: "Всплытие снизу + fade",
+      anim_fade: "Только fade",
+      anim_slide: "Выезд сбоку",
+      anim_pop: "Пружинка",
+      anim_none: "Без анимации",
+      expire: "Сообщения исчезают",
+      life: "Время жизни",
+      never: "∞",
+      sec: "с",
+      max: "Сообщений на экране",
+      size: "Шрифт",
+      width: "Ширина",
+      transp: "Прозрачность фона",
+      align: "Прижать к краю",
+      left: "Слева",
+      right: "Справа",
+      badges: "Значки модераторов и VIP",
+      bots: "Скрывать ботов (через запятую)",
+      copy: "Скопировать ссылку для OBS",
+      copied: "Скопировано ✓",
+      needChannel: "Сначала укажи канал",
+      preview: "Превью · тестовые сообщения",
+      obs: (w) => `В OBS: <b>Источник → Браузер</b>, вставь ссылку, размер <b>${w} × 1080</b> (высоту можно меньше) и поставь источник у правого края сцены.`
+    },
+    en: {
+      title: "OBS Chat Box",
+      subtitle: "Set it up and copy the link into OBS",
+      channel: "Twitch channel",
+      anim: "Entry animation",
+      anim_rise: "Rise from below + fade",
+      anim_fade: "Fade only",
+      anim_slide: "Slide in from the side",
+      anim_pop: "Spring pop",
+      anim_none: "No animation",
+      expire: "Messages disappear",
+      life: "Lifetime",
+      never: "∞",
+      sec: "s",
+      max: "Messages on screen",
+      size: "Font",
+      width: "Width",
+      transp: "Background transparency",
+      align: "Stick to side",
+      left: "Left",
+      right: "Right",
+      badges: "Moderator and VIP badges",
+      bots: "Hide bots (comma-separated)",
+      copy: "Copy link for OBS",
+      copied: "Copied ✓",
+      needChannel: "Enter a channel first",
+      preview: "Preview · test messages",
+      obs: (w) => `In OBS: <b>Source → Browser</b>, paste the link, size <b>${w} × 1080</b> (height can be smaller) and place it at the right edge of the scene.`
     }
-  }
-
-  $('lu').value = ls.get(K.lu) || '';
-  $('lk').value = ls.get(K.lk) || '';
-  $('channel').value = ls.get(K.chan) || '';
-  $('pos').value = ls.get(K.pos) || 'below';
-  $('cdLast').value = minutes(ls.get(K.cdLast), 3);
-  $('cdSong').value = minutes(ls.get(K.cdSong), 3);
-  $('cdTop').value = minutes(ls.get(K.cdTop), 3);
-  $('autoLast').value = autoMin(ls.get(K.al));
-  $('autoTop').value = autoMin(ls.get(K.at));
-  $('tp').value = ls.get(K.tp) || '7day';
-  $('gt').value = transparency();
-  $('gtVal').textContent = transparency() + '%';
-
-  $('lu').oninput = () => { ls.set(K.lu, cleanName($('lu').value)); renderLink(); };
-  $('lk').oninput = () => { ls.set(K.lk, $('lk').value.trim()); renderLink(); };
-  $('channel').oninput = () => { ls.set(K.chan, cleanChannel($('channel').value)); renderLink(); };
-  $('cdLast').oninput = () => { ls.set(K.cdLast, $('cdLast').value); renderLink(); };
-  $('cdSong').oninput = () => { ls.set(K.cdSong, $('cdSong').value); renderLink(); };
-  $('cdTop').oninput = () => { ls.set(K.cdTop, $('cdTop').value); renderLink(); };
-  $('autoLast').oninput = () => { ls.set(K.al, $('autoLast').value); renderLink(); };
-  $('autoTop').oninput = () => { ls.set(K.at, $('autoTop').value); renderLink(); };
-  $('tp').onchange = () => { ls.set(K.tp, $('tp').value); renderLink(); };
-  $('gt').oninput = () => {
-    ls.set(K.gt, $('gt').value);
-    $('gtVal').textContent = $('gt').value + '%';
-    renderLink();
-    // update the preview live without reloading it
-    try { $('preview').contentDocument.documentElement.style.setProperty('--glass', String(1 - $('gt').value / 100)); } catch {}
   };
-  $('pos').onchange = () => { ls.set(K.pos, $('pos').value); renderLink(); setPreview(); };
-  $('check').onclick = check;
-  $('linkShow').onclick = () => {
-    const el = $('link'), hidden = el.type === 'password';
-    el.type = hidden ? 'text' : 'password';
-    $('linkShow').textContent = hidden ? 'Hide' : 'Show';
+
+  const $ = id => document.getElementById(id);
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} }
   };
-  document.querySelectorAll('[data-copy]').forEach(btn => {
-    btn.onclick = async () => {
-      const el = $(btn.dataset.copy);
-      if (!el.value) return;
-      try { await navigator.clipboard.writeText(el.value); }
-      catch { const t = el.type; el.type = 'text'; el.select(); document.execCommand('copy'); el.type = t; }
-      const old = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = old; }, 1200);
-    };
-  });
 
-  // ---------- song request settings ----------
-  function ttStatus(text, cls) { const el = $('ttStatus'); el.className = 'status' + (cls ? ' ' + cls : ''); el.textContent = text; }
-  async function checkToken() {
-    const tok = $('tt').value.trim().replace(/^oauth:/i, '');
-    if (!tok) { ls.set(K.tt, ''); ls.set(K.tu, ''); renderLink(); return ttStatus('No token — requests still work, but there will be no replies in chat.'); }
-    ttStatus('Checking…');
-    try {
-      const r = await fetch('https://id.twitch.tv/oauth2/validate', { headers: { Authorization: 'OAuth ' + tok } });
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) { ls.set(K.tt, ''); ls.set(K.tu, ''); renderLink(); return ttStatus('Twitch rejected this token: ' + (j.message || r.status), 'err'); }
-      const scopes = j.scopes || [];
-      if (!scopes.includes('chat:edit')) { ls.set(K.tt, ''); renderLink(); return ttStatus('This token can\'t write to chat (missing chat:edit). Generate a "Bot Chat Token".', 'err'); }
-      ls.set(K.tt, tok); ls.set(K.tu, j.login);
-      renderLink();
-      const exp = j.expires_in ? ' · expires ' + new Date(Date.now() + j.expires_in * 1000).toLocaleDateString('en-GB') : '';
-      const chan = cleanChannel(ls.get(K.chan));
-      const warn = chan && chan !== j.login ? ` (your channel is ${chan})` : '';
-      ttStatus(`✓ Replies will be sent as ${j.login}${warn}${exp}`, 'ok');
-    } catch (e) { ttStatus("Can't reach Twitch: " + e.message, 'err'); }
-  }
-  $('tt').value = ls.get(K.tt) || '';
-  $('np').value = ls.get(K.np) || 'below';
-  $('rm').value = reqMax();
-  $('rc').value = reqCd();
-  if (ls.get(K.tt)) ttStatus(`✓ Replies will be sent as ${ls.get(K.tu)}`, 'ok'); else ttStatus('No token yet.');
-  $('ttCheck').onclick = checkToken;
-  $('np').onchange = () => { ls.set(K.np, $('np').value); renderLink(); setPreview(); };
-  $('rm').oninput = () => { ls.set(K.rm, $('rm').value); renderLink(); };
-  $('rc').oninput = () => { ls.set(K.rc, $('rc').value); renderLink(); };
+  let lang = store.get("cb_lang") || ((navigator.language || "").startsWith("ru") ? "ru" : "en");
+  let S = { ...DEFAULTS };
+  try { Object.assign(S, JSON.parse(store.get("cb_settings") || "{}")); } catch {}
 
-  // ---------- live request list (read-only mirror of the overlay's queue) ----------
-  function startRequests() {
-    const chan = cleanChannel(ls.get(K.chan)), lu = cleanName(ls.get(K.lu)), lk = (ls.get(K.lk) || '').trim();
-    if (!chan || !lu || !lk || !window.SongRequests) return;
-    const lfm = async (params) => {
-      const u = new URL('https://ws.audioscrobbler.com/2.0/');
-      u.search = new URLSearchParams({ ...params, api_key: lk, format: 'json' });
-      const j = await (await fetch(u.href)).json();
-      if (j.error) throw new Error(j.message);
-      return j;
-    };
-    const NOTE_IMG = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72"><rect width="72" height="72" fill="#1c1c24"/><path d="M30 46.5V24l18-4v22.5" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="26" cy="46.5" r="4.5" fill="rgba(255,255,255,.35)"/><circle cx="44" cy="42.5" r="4.5" fill="rgba(255,255,255,.35)"/></svg>');
-    const list = $('srList');
-    const ago = (ts) => { const m = Math.round((Date.now() - ts) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.floor(m / 60)} h ago`; };
-    const render = () => {
-      const st = q.snapshot();
-      list.textContent = '';
-      $('srEmpty').hidden = st.queue.length > 0;
-      let k = 0;                          // numbering matches !queue: upcoming requests only
-      st.queue.forEach((r) => {
-        const li = document.createElement('li');
-        const playing = r.id === st.playingId;
-        li.className = 'sr-item' + (playing ? ' playing' : '');
-        const pos = playing ? 0 : ++k;
-        const n = document.createElement('span'); n.className = 'sr-n'; n.textContent = playing ? '▶' : String(pos);
-        const img = document.createElement('img'); img.alt = ''; img.src = r.cover || NOTE_IMG;
-        const meta = document.createElement('div'); meta.className = 'sr-meta';
-        const t = document.createElement('div'); t.className = 'sr-t'; t.textContent = r.title;
-        const a = document.createElement('div'); a.className = 'sr-a'; a.textContent = r.artist;
-        const by = document.createElement('div'); by.className = 'sr-by'; by.textContent = `@${r.by} · ${ago(r.at)}`;
-        if (playing) { const b = document.createElement('span'); b.className = 'sr-badge'; b.textContent = ' · playing now'; by.appendChild(b); }
-        meta.append(t, a, by);
-        const open = document.createElement('a'); open.className = 'btn'; open.textContent = 'Open in Spotify';
-        open.href = 'spotify:search:' + encodeURIComponent(`${r.artist} ${r.title}`);
-        open.title = 'Opens the Spotify app with this track searched';
-        const del = document.createElement('button'); del.className = 'sr-del'; del.textContent = '✕';
-        del.title = writer ? (playing ? 'Remove (sends !next)' : `Remove (sends !remove ${pos})`) : 'Add the Twitch token in block 04 to remove from here';
-        del.disabled = !writer;
-        del.onclick = () => {
-          const cmd = playing ? '!next' : `!remove ${pos}`;
-          if (!writer.send(cmd)) alert('Not connected to Twitch chat yet — try again in a few seconds.');
-          del.disabled = true;
-        };
-        li.append(n, img, meta, open, del);
-        list.appendChild(li);
-      });
-    };
-    const tok = ls.get(K.tt), login = ls.get(K.tu);
-    const writer = tok && login ? SongRequests.chatWriter({ channel: chan, token: tok, login }) : null;
-    const q = SongRequests.createQueue({
-      storageKey: 'np757.sr.page.' + chan, lfm, say: null, onChange: render,
-      maxPerUser: reqMax(), cooldownMs: reqCd() * 60 * 1000,
-    });
+  function t(k) { return I18N[lang][k]; }
+
+  function applyLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t(el.dataset.t); });
+    document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.lang === lang));
     render();
-    setInterval(render, 60000);   // refresh "x min ago"
-    $('srReset').onclick = () => {
-      if (!writer) return alert('Add the Twitch token in block 04 first — the button sends !clear to chat from your account.');
-      if (confirm('Clear the whole queue? This sends !clear to chat.') && !writer.send('!clear')) alert('Not connected to Twitch chat yet — try again in a few seconds.');
-    };
-
-    // chat, anonymously
-    const status = $('srStatus');
-    let backoff = 1000;
-    const connect = () => {
-      const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
-      ws.onopen = () => {
-        backoff = 1000;
-        ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
-        ws.send('NICK justinfan' + Math.floor(10000 + Math.random() * 80000));
-        ws.send('JOIN #' + chan);
-        status.textContent = 'Listening to #' + chan; status.className = 'sr-status live';
-      };
-      ws.onmessage = (e) => {
-        for (const line of String(e.data).split('\r\n')) {
-          if (!line) continue;
-          if (line.startsWith('PING')) { ws.send('PONG :tmi.twitch.tv'); continue; }
-          const m = line.match(/^@(\S+) :([^!]+)!\S+ PRIVMSG #\S+ :(.*)$/);
-          if (!m) continue;
-          const tags = {};
-          m[1].split(';').forEach(kv => { const i = kv.indexOf('='); tags[kv.slice(0, i)] = kv.slice(i + 1); });
-          const nick = tags['display-name'] || m[2];
-          q.handleChat({
-            text: m[3], nick, userId: tags['user-id'] || nick.toLowerCase(),
-            isMod: tags.mod === '1' || /(^|,)broadcaster\//.test(tags.badges || ''),
-            ts: Number(tags['tmi-sent-ts']) || Date.now(), msgId: tags.id,
-          });
-        }
-      };
-      ws.onclose = () => {
-        status.textContent = 'Reconnecting to chat…'; status.className = 'sr-status';
-        setTimeout(connect, backoff); backoff = Math.min(backoff * 2, 60000);
-      };
-    };
-    connect();
-
-    // what's playing, so finished requests drop off the list
-    const pollNow = async () => {
-      try {
-        const j = await lfm({ method: 'user.getrecenttracks', user: lu, limit: '1' });
-        let t = j.recenttracks && j.recenttracks.track;
-        if (Array.isArray(t)) t = t[0];
-        const playing = t && t['@attr'] && t['@attr'].nowplaying === 'true';
-        q.onNowPlaying(playing ? { artist: (t.artist && (t.artist['#text'] || t.artist.name)) || '', title: t.name, playing: true } : { playing: false });
-      } catch {}
-      setTimeout(pollNow, 8000);
-    };
-    pollNow();
   }
 
-  renderLink();
-  setPreview();
-  startRequests();
+  function fillForm() {
+    $("channel").value = S.channel;
+    $("anim").value = S.anim;
+    $("expire").checked = S.expire;
+    $("life").value = S.life;
+    $("max").value = S.max;
+    $("size").value = S.size;
+    $("width").value = S.width;
+    $("transp").value = S.transp;
+    $("badges").checked = S.badges;
+    $("bots").value = S.bots;
+  }
+
+  function readForm() {
+    S.channel = $("channel").value.trim().replace(/^.*twitch\.tv\//i, "").replace(/^#/, "").split(/[/?#\s]/)[0].toLowerCase();
+    S.anim = $("anim").value;
+    S.expire = $("expire").checked;
+    S.life = +$("life").value;
+    S.max = +$("max").value;
+    S.size = +$("size").value;
+    S.width = +$("width").value;
+    S.transp = +$("transp").value;
+    S.badges = $("badges").checked;
+    S.bots = $("bots").value;
+  }
+
+  function buildParams() {
+    const p = new URLSearchParams();
+    if (S.channel) p.set("channel", S.channel);
+    p.set("anim", S.anim);
+    p.set("life", S.expire ? S.life : 0);
+    p.set("max", S.max);
+    p.set("size", S.size);
+    p.set("width", S.width);
+    p.set("glass", 100 - S.transp);
+    p.set("align", S.align);
+    if (!S.badges) p.set("badges", "0");
+    const bots = S.bots.split(",").map(s => s.trim().toLowerCase()).filter(Boolean).join(",");
+    if (bots !== DEFAULT_BOTS.split(",").map(s => s.trim()).join(",")) p.set("bots", bots);
+    return p;
+  }
+
+  const chatBase = new URL("chat.html", location.href).href;
+  const chatUrl = () => chatBase + "?" + buildParams().toString();
+
+  let previewTimer, lastPreview = "";
+  function render() {
+    $("lifeV").textContent = S.expire ? S.life + " " + t("sec") : t("never");
+    $("life").disabled = !S.expire;
+    $("maxV").textContent = S.max;
+    $("sizeV").textContent = S.size + "px";
+    $("widthV").textContent = S.width + "px";
+    $("transpV").textContent = S.transp + "%";
+    document.querySelectorAll("#align button").forEach(b => b.classList.toggle("on", b.dataset.v === S.align));
+
+    $("url").textContent = S.channel ? chatUrl() : "—";
+    $("copy").disabled = !S.channel;
+    $("copy").textContent = S.channel ? t("copy") : t("needChannel");
+    $("obsNote").innerHTML = t("obs")(S.width + 32);
+
+    const pv = $("preview");
+    pv.classList.toggle("left", S.align === "left");
+    $("frame").style.width = Math.min(S.width + 32, pv.clientWidth || S.width + 32) + "px";
+
+    // Превью перезагружаем с задержкой, чтобы ползунки не дёргали его на каждый шаг
+    const src = chatUrl() + "&demo=1";
+    if (src !== lastPreview) {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(() => { $("frame").src = src; lastPreview = src; }, 350);
+    }
+    store.set("cb_settings", JSON.stringify(S));
+  }
+
+  document.querySelectorAll("input, select, textarea").forEach(el => {
+    el.addEventListener("input", () => { readForm(); render(); });
+    el.addEventListener("change", () => { readForm(); render(); });
+  });
+  document.querySelectorAll("#align button").forEach(b =>
+    b.addEventListener("click", () => { S.align = b.dataset.v; render(); }));
+  document.querySelectorAll(".lang button").forEach(b =>
+    b.addEventListener("click", () => { lang = b.dataset.lang; store.set("cb_lang", lang); applyLang(); }));
+
+  $("copy").addEventListener("click", async () => {
+    const url = chatUrl();
+    try { await navigator.clipboard.writeText(url); }
+    catch {
+      const r = document.createRange(); r.selectNodeContents($("url"));
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      document.execCommand("copy");
+    }
+    $("copy").textContent = t("copied");
+    setTimeout(() => { $("copy").textContent = t("copy"); }, 1600);
+  });
+  addEventListener("resize", render);
+
+  fillForm();
+  applyLang();
 })();
 </script>
 </body>
